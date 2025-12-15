@@ -1,0 +1,38 @@
+@"
+# Compiled class files
+*.class
+
+# Maven build folder
+target/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*.bak
+*.orig
+
+# IDE files
+.idea/
+*.iml
+*.iws
+out/
+.settings/
+*.classpath
+*.project
+*.factorypath
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Maven wrapper scripts
+mvnw
+mvnw.cmd
+
+# Dependency directories
+node_modules/
+"@ | Out-File -Encoding UTF8 .gitignore
