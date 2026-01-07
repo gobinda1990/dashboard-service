@@ -126,8 +126,10 @@ public class CommonRepositoryImpl implements CommonRepository {
 				user.setGpfNo(rs.getString("gpfNo"));
 				user.setPanNo(rs.getString("panNo"));
 				user.setBoId(rs.getString("boId"));
+//				user.setProfileImageUrl(
+//						"http://localhost:8082/api/uploads/profile-pics/" + rs.getString("profileImageUrl"));
 				user.setProfileImageUrl(
-						"http://localhost:8082/api/uploads/profile-pics/" + rs.getString("profileImageUrl"));
+						"http://10.153.43.8:8082/api/uploads/profile-pics/" + rs.getString("profileImageUrl"));
 
 				return user;
 			}
