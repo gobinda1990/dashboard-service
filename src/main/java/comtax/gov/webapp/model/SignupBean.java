@@ -4,11 +4,15 @@ import java.time.LocalDate;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
+import lombok.*;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class SignupBean {
 
     @NotBlank(message = "HRMS code is required")
@@ -21,7 +25,7 @@ public class SignupBean {
     @NotBlank(message = "Full name is required")
     private String full_name;
 
-//    @Email(message = "Invalid email format")
+    @Email(message = "Invalid email format")
     @NotBlank(message = "Email is required")
     private String email;
 
@@ -35,17 +39,22 @@ public class SignupBean {
     private String gpf_no;
     private String circle_cd;
     private String charge_cd;
-    private String usr_pwd_creation_dt;
-    private String password_expire_dt;
     private String hint_qs_cd;
     private String hint_ans;
+
+    @Pattern(regexp = "^[MFOT]$", message = "Gender must be M (Male), F (Female), O (Other), or T (Transgender)")
     private String gender;
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    private String dt_of_birth;
-    private String office_cd;
-//    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
-    @JsonFormat(pattern = "yyyy-MM-dd")
+
+    @NotNull(message = "Date of birth is required")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate dt_of_birth;
+
+    @NotNull(message = "Date of joining is required")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate dt_of_join;
+
+//    @NotBlank(message = "Office code is required")
+    private String office_cd;
 
     @Pattern(regexp = "^[A-Z]{5}[0-9]{4}[A-Z]{1}$", message = "Invalid PAN format")
     private String pan_no;

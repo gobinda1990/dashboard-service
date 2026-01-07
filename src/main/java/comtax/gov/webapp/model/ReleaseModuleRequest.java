@@ -1,7 +1,5 @@
 package comtax.gov.webapp.model;
 
-
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -9,9 +7,9 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class PostingDet {
-	private String postingType;
-    private String officeType;
-    private String officeId;
+public class ReleaseModuleRequest {
+//	private String hrmsCode;
+    private String projectId;
+    private String roleId;
 
 }

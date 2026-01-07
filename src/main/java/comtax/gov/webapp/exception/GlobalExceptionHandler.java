@@ -1,167 +1,189 @@
 package comtax.gov.webapp.exception;
 
+import comtax.gov.webapp.model.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.*;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.validation.BindException;
 import org.springframework.web.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.servlet.NoHandlerFoundException;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authorization.AuthorizationDeniedException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import comtax.gov.webapp.model.ApiResponse;
-import lombok.extern.slf4j.Slf4j;
-
 import java.nio.file.AccessDeniedException;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Global centralized exception handler for all controllers. Converts exceptions
+ * into unified ApiResponse JSON structures.
+ */
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
-	
-	// -------------------- Client Errors --------------------
+	// =====================================================
+	// === Authentication & Authorization Exceptions =======
+	// =====================================================
 
-	@ExceptionHandler(UsernameNotFoundException.class)
-	public ResponseEntity<ApiResponse<String>> handleAuthenticationErrors(UsernameNotFoundException ex) {
-		String message = "Invalid username or password";
-		log.warn("Authentication error: {}", message, ex.getMessage());
-
-		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-				.body(new ApiResponse<>(HttpStatus.UNAUTHORIZED.value(), message, ErrorCode.UNAUTHORIZED, null));
+	@ExceptionHandler({ UsernameNotFoundException.class, BadCredentialsException.class })
+	public ResponseEntity<ApiResponse<String>> handleAuthErrors(Exception ex, HttpServletRequest request) {
+		log.warn("Authentication error: {}", ex.getMessage());
+		return build(HttpStatus.UNAUTHORIZED, "Invalid username or password.", ErrorCode.UNAUTHORIZED, request);
 	}
 
-	@ExceptionHandler(BadCredentialsException.class)
-	public ResponseEntity<ApiResponse<String>> handleBadCredentials(BadCredentialsException ex) {
-		String message = "Invalid username or password";
-		log.warn("Authentication error: {}", message, ex.getMessage());
-
-		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-				.body(new ApiResponse<>(HttpStatus.UNAUTHORIZED.value(), message, ErrorCode.UNAUTHORIZED, null));
+	@ExceptionHandler({ AuthorizationDeniedException.class, AccessDeniedException.class })
+	public ResponseEntity<ApiResponse<String>> handleAccessDenied(Exception ex, HttpServletRequest request) {
+		log.warn("Access denied: {}", ex.getMessage());
+		return build(HttpStatus.FORBIDDEN, "Access denied: You do not have permission to access this resource.",
+				ErrorCode.FORBIDDEN, request);
 	}
 
-	@ExceptionHandler(AuthorizationDeniedException.class)
-	public ResponseEntity<ApiResponse<String>> handleAccessDenied(AuthorizationDeniedException ex) {
-		String message = "Access Denied: You do not have permission to access this resource";
-		log.warn("Authorization error: {}", message, ex.getMessage());
-
-		return ResponseEntity.status(HttpStatus.FORBIDDEN)
-				.body(new ApiResponse<>(HttpStatus.FORBIDDEN.value(), message, ErrorCode.FORBIDDEN, null));
-	}
+	// =====================================================
+	// === Validation & Input Errors =======================
+	// =====================================================
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
-	public ResponseEntity<ApiResponse<String>> handleValidationErrors(MethodArgumentNotValidException ex) {
-		String errorMsg = ex.getBindingResult().getFieldErrors().stream()
-				.map(error -> error.getField() + ": " + error.getDefaultMessage()).collect(Collectors.joining(", "));
-
-		String message = "Some fields have invalid values: " + errorMsg;
-		log.warn("Validation error: {}", message);
-
-		return ResponseEntity.badRequest().body(
-				new ApiResponse<String>(HttpStatus.BAD_REQUEST.value(), message, ErrorCode.VALIDATION_ERROR, null));
+	public ResponseEntity<ApiResponse<String>> handleValidationErrors(MethodArgumentNotValidException ex,
+			HttpServletRequest request) {
+		String details = ex.getBindingResult().getFieldErrors().stream()
+				.map(err -> err.getField() + ": " + err.getDefaultMessage()).collect(Collectors.joining(", "));
+		log.warn("Validation error: {}", details);
+		return build(HttpStatus.BAD_REQUEST, "Validation failed: " + details, ErrorCode.VALIDATION_ERROR, request);
 	}
 
 	@ExceptionHandler(BindException.class)
-	public ResponseEntity<ApiResponse<String>> handleBindErrors(BindException ex) {
-		String errorMsg = ex.getBindingResult().getFieldErrors().stream()
-				.map(error -> error.getField() + ": " + error.getDefaultMessage()).collect(Collectors.joining(", "));
-		String message = "Binding error: " + errorMsg;
-		log.warn("Binding error: {}", message);
-
-		return ResponseEntity.badRequest()
-				.body(new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), message, ErrorCode.VALIDATION_ERROR, null));
+	public ResponseEntity<ApiResponse<String>> handleBindErrors(BindException ex, HttpServletRequest request) {
+		String details = ex.getBindingResult().getFieldErrors().stream()
+				.map(err -> err.getField() + ": " + err.getDefaultMessage()).collect(Collectors.joining(", "));
+		log.warn("Bind error: {}", details);
+		return build(HttpStatus.BAD_REQUEST, "Binding failed: " + details, ErrorCode.VALIDATION_ERROR, request);
 	}
 
 	@ExceptionHandler(HttpMessageNotReadableException.class)
-	public ResponseEntity<ApiResponse<String>> handleJsonParseError(HttpMessageNotReadableException ex) {
-		log.warn("JSON parse error: {}", ex.getMessage(), ex.getMessage());
-		String message = "Malformed JSON request. Please check your request body.";
-		return ResponseEntity.badRequest()
-				.body(new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), message, ErrorCode.JSON_PARSE_ERROR, null));
+	public ResponseEntity<ApiResponse<String>> handleJsonParse(HttpMessageNotReadableException ex,
+			HttpServletRequest request) {
+		log.warn("Malformed JSON request: {}", ex.getMessage());
+		return build(HttpStatus.BAD_REQUEST, "Malformed JSON request. Please check your request body.",
+				ErrorCode.JSON_PARSE_ERROR, request);
 	}
 
 	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-	public ResponseEntity<ApiResponse<String>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
-		log.warn("Method not supported: {}. Supported: {}", ex.getMethod(), ex.getSupportedHttpMethods());
-		String supportedMethods = ex.getSupportedHttpMethods() != null
+	public ResponseEntity<ApiResponse<String>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex,
+			HttpServletRequest request) {
+		String supported = ex.getSupportedHttpMethods() != null
 				? ex.getSupportedHttpMethods().stream().map(HttpMethod::name).collect(Collectors.joining(", "))
 				: "N/A";
-		String message = "Request method '" + ex.getMethod() + "' not supported. Supported methods: "
-				+ supportedMethods;
-
-		return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(
-				new ApiResponse<>(HttpStatus.METHOD_NOT_ALLOWED.value(), message, ErrorCode.MISSING_PARAMETER, null));
+		log.warn("HTTP method {} not supported. Supported: {}", ex.getMethod(), supported);
+		return build(HttpStatus.METHOD_NOT_ALLOWED,
+				"Request method '" + ex.getMethod() + "' not supported. Supported methods: " + supported,
+				ErrorCode.MISSING_PARAMETER, request);
 	}
 
 	@ExceptionHandler(NoHandlerFoundException.class)
-	public ResponseEntity<ApiResponse<String>> handleNoHandler(NoHandlerFoundException ex) {
-		log.warn("No handler found for request URL: {}", ex.getRequestURL(), ex.getMessage());
-		String message = "The requested endpoint does not exist. Please check the URL.";
-		return ResponseEntity.status(HttpStatus.NOT_FOUND)
-				.body(new ApiResponse<>(HttpStatus.NOT_FOUND.value(), message, ErrorCode.RESOURCE_NOT_FOUND, null));
+	public ResponseEntity<ApiResponse<String>> handleNoHandler(NoHandlerFoundException ex, HttpServletRequest request) {
+		log.warn("No handler found for URL: {}", ex.getRequestURL());
+		return build(HttpStatus.NOT_FOUND, "The requested endpoint does not exist. Please check the URL.",
+				ErrorCode.RESOURCE_NOT_FOUND, request);
 	}
 
 	@ExceptionHandler(ResourceNotFoundException.class)
-	public ResponseEntity<ApiResponse<String>> handleResourceNotFound(ResourceNotFoundException ex) {
-		log.warn("Resource not found: {}", ex.getMessage(), ex.getMessage());
-		String message = ex.getMessage() != null ? ex.getMessage() : "The requested resource could not be found.";
-		return ResponseEntity.status(HttpStatus.NOT_FOUND)
-				.body(new ApiResponse<>(HttpStatus.NOT_FOUND.value(), message, ErrorCode.RESOURCE_NOT_FOUND, null));
+	public ResponseEntity<ApiResponse<String>> handleResourceNotFound(ResourceNotFoundException ex,
+			HttpServletRequest request) {
+		log.warn("Resource not found: {}", ex.getMessage());
+		return build(HttpStatus.NOT_FOUND, ex.getMessage() != null ? ex.getMessage() : "Resource not found.",
+				ErrorCode.RESOURCE_NOT_FOUND, request);
 	}
 
-	@ExceptionHandler(AccessDeniedException.class)
-	public ResponseEntity<ApiResponse<String>> handleAccessDenied(AccessDeniedException ex) {
-		log.warn("Access denied: {}", ex.getMessage(), ex.getMessage());
-		String message = "You do not have permission to access this resource.";
-		return ResponseEntity.status(HttpStatus.FORBIDDEN)
-				.body(new ApiResponse<>(HttpStatus.FORBIDDEN.value(), message, ErrorCode.FORBIDDEN, null));
+	// =====================================================
+	// === Custom Domain Exceptions ========================
+	// =====================================================
+
+	@ExceptionHandler(DatabaseOperationException.class)
+	public ResponseEntity<ApiResponse<String>> handleDatabaseOperation(DatabaseOperationException ex,
+			HttpServletRequest request) {
+		log.error("Database operation error: {}", ex.getMessage(), ex);
+		return build(HttpStatus.INTERNAL_SERVER_ERROR,
+				"Database operation failed. Please contact system administrator.", ErrorCode.DB_CONNECTION_ERROR,
+				request);
 	}
 
-	// -------------------- Server Errors --------------------
+	@ExceptionHandler(DataSaveException.class)
+	public ResponseEntity<ApiResponse<String>> handleAssignmentSave(DataSaveException ex,
+			HttpServletRequest request) {
+		log.error("Assignment save failed: {}", ex.getMessage(), ex);
+		return build(HttpStatus.BAD_REQUEST, "Unable to save assignment data. Please verify your input and try again.",
+				ErrorCode.SAVE_OPERATION_FAILED, request);
+	}
 
-	@ExceptionHandler({ DataAccessException.class, DatabaseException.class, SQLException.class })
-	public ResponseEntity<ApiResponse<String>> handleDatabaseError(Exception ex) {
-		log.error("Database exception occurred", ex.getMessage());
-		String message = "Database error occurred. Please try again later.";
-		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiResponse<>(
-				HttpStatus.INTERNAL_SERVER_ERROR.value(), message, ErrorCode.DB_CONNECTION_ERROR, null));
+	// =====================================================
+	// === Infrastructure / Service Errors ================
+	// =====================================================
+
+	@ExceptionHandler({ DataAccessException.class, SQLException.class, DatabaseException.class })
+	public ResponseEntity<ApiResponse<String>> handleDatabaseError(Exception ex, HttpServletRequest request) {
+		log.error("Database exception occurred: {}", ex.getMessage(), ex);
+		return build(HttpStatus.INTERNAL_SERVER_ERROR, "Database error occurred. Please try again later.",
+				ErrorCode.DB_CONNECTION_ERROR, request);
 	}
 
 	@ExceptionHandler(ServiceException.class)
-	public ResponseEntity<ApiResponse<String>> handleServiceUnavailable(ServiceException ex) {
-		log.error("Service unavailable", ex.getMessage());
-		String message = "Service temporarily unavailable. Please try again later.";
-		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ApiResponse<>(
-				HttpStatus.SERVICE_UNAVAILABLE.value(), message, ErrorCode.SERVICE_UNAVAILABLE, null));
+	public ResponseEntity<ApiResponse<String>> handleServiceUnavailable(ServiceException ex,
+			HttpServletRequest request) {
+		log.error("Service unavailable: {}", ex.getMessage(), ex);
+		return build(HttpStatus.SERVICE_UNAVAILABLE, "Service temporarily unavailable. Please try again later.",
+				ErrorCode.SERVICE_UNAVAILABLE, request);
 	}
 
 	@ExceptionHandler(EncryptionException.class)
-	public ResponseEntity<ApiResponse<String>> handleEncryption(EncryptionException ex) {
-		log.error("Encryption error occurred", ex.getMessage());
-		String message = "An error occurred while securing your data. Please try again.";
-		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-				new ApiResponse<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), message, ErrorCode.UNEXPECTED_ERROR, null));
+	public ResponseEntity<ApiResponse<String>> handleEncryption(EncryptionException ex, HttpServletRequest request) {
+		log.error("Encryption error: {}", ex.getMessage(), ex);
+		return build(HttpStatus.INTERNAL_SERVER_ERROR, "Error occurred while securing your data.",
+				ErrorCode.UNEXPECTED_ERROR, request);
 	}
 
 	@ExceptionHandler(AsyncRequestTimeoutException.class)
-	public ResponseEntity<ApiResponse<String>> handleAsyncTimeout(AsyncRequestTimeoutException ex) {
-		log.error("Async request timed out", ex.getMessage());
-		String message = "The request timed out. Please try again later.";
-		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ApiResponse<>(
-				HttpStatus.SERVICE_UNAVAILABLE.value(), message, ErrorCode.EXTERNAL_API_TIMEOUT, null));
+	public ResponseEntity<ApiResponse<String>> handleAsyncTimeout(AsyncRequestTimeoutException ex,
+			HttpServletRequest request) {
+		log.error("Async request timeout: {}", ex.getMessage(), ex);
+		return build(HttpStatus.SERVICE_UNAVAILABLE, "The request timed out. Please try again later.",
+				ErrorCode.EXTERNAL_API_TIMEOUT, request);
 	}
 
-	// -------------------- Fallback --------------------
+	// =====================================================
+	// === Generic Fallback ===============================
+	// =====================================================
 
 	@ExceptionHandler(Exception.class)
-	public ResponseEntity<ApiResponse<String>> handleAll(Exception ex) {
-		log.error("Unhandled error occurred", ex.getMessage());
-		String message = "An unexpected error occurred. Please try again later.";
-		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-				new ApiResponse<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), message, ErrorCode.UNEXPECTED_ERROR, null));
+	public ResponseEntity<ApiResponse<String>> handleGeneric(Exception ex, HttpServletRequest request) {
+		log.error("Unhandled exception: {}", ex.getMessage(), ex);
+		return build(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred. Please try again later.",
+				ErrorCode.UNEXPECTED_ERROR, request);
+	}
+
+	// =====================================================
+	// === Utility Method =================================
+	// =====================================================
+
+	private ResponseEntity<ApiResponse<String>> build(HttpStatus status, String message, ErrorCode code,
+			HttpServletRequest request) {
+
+		String requestId = (String) request.getAttribute("requestId"); // Optional trace ID from filter
+		if (requestId == null) {
+			requestId = UUID.randomUUID().toString(); // fallback if not provided
+		}
+
+		ApiResponse<String> response = ApiResponse.<String>builder().status(status.value()).message(message)
+				.errorCode(code).success(status.is2xxSuccessful()).timestamp(LocalDateTime.now())
+				.path(request.getRequestURI()).requestId(requestId).build();
+
+		return ResponseEntity.status(status).body(response);
 	}
 }

@@ -16,14 +16,22 @@ public interface CommonRepository {
 	
 	String FETCH_PROJECT_SQL = "SELECT project_id, project_name, project_url FROM impact2_project_details";
 	
-	String FETCH_PROJECT_SQL_user = "SELECT  pm.project_id, pd.project_name, pd.project_url FROM impact2_user_project_mapping pm JOIN "
-			+ "impact2_project_details pd ON pm.project_id = pd.project_id JOIN impact2_user_posting up ON pm.hrms_code = up.hrms_code "
-			+ "WHERE pm.hrms_code = ? AND up.role_id = ?";
+	String FETCH_PROJECT_SQL_user = " SELECT  pm.project_id, pd.project_name, pd.project_url FROM impact2_user_project_det pm "
+			+ " LEFT JOIN impact2_project_details pd ON pm.project_id = pd.project_id WHERE pm.hrms_code = ? ";
+			
 	
 	
 	
 //    String FETCH_USER_SQL="SELECT HRMS_CODE,FULL_NAME,EMAIL,PHONE_NO,DESIG_CD,GPF_NO,PAN_NO,BO_ID FROM  IMPACT2_USER_MASTER where USR_STATUS_CD=?";
 	String FETCH_USER_SQL="SELECT im.HRMS_CODE,im.FULL_NAME,EMAIL,im.PHONE_NO,(select designation from designation_cd where desig_cd=im.desig_cd) desigCd,im.GPF_NO,im.PAN_NO,im.BO_ID FROM  IMPACT2_USER_MASTER im where USR_STATUS_CD=?";
+	
+	String SELECT_USER_ALL="SELECT  um.hrms_code AS hrmsCode,um.full_name AS fullName,um.email AS email,um.phone_no AS phoneNo,"
+			+ " d.designation  AS desigName,um.gpf_no AS gpfNo,um.pan_no AS panNo,um.bo_id AS boId,upi.image_url AS profileImageUrl"
+			+ " FROM impact2_user_master um "
+			+ " LEFT JOIN designation_cd d ON um.desig_cd = d.desig_cd "
+			+ " LEFT JOIN impact2_profile_image upi ON um.hrms_code = upi.hrms_code "
+			+ " WHERE um.usr_status_cd = ? ";
+	
 	String FETCH_CIRCLE_SQL = "SELECT circle_cd, circle_nm FROM circle_cd";
 	String FETCH_CHARGE_SQL = "SELECT charge_cd, charge_nm FROM charge_cd";
 	String FETCH_OFFICE_SQL = "SELECT office_cd, office_nm FROM office_cd";
@@ -39,6 +47,13 @@ public interface CommonRepository {
 	
 	String RELEASE_EMP_SQL1 = "UPDATE impact2_user_master SET usr_status_cd='A' WHERE hrms_code=?";
 	String RELEASE_EMP_SQL2 = "UPDATE impact2_user_posting SET status='A' WHERE hrms_code=?";
+	
+	String SELECT_USER_DET=" SELECT  um.hrms_code AS hrmsCode,um.full_name AS fullName,um.email AS email,um.phone_no AS phoneNo, "
+			+ " d.designation AS desigName,um.gpf_no AS gpfNo,um.pan_no AS panNo,um.bo_id AS boId,upi.image_url AS profileImageUrl"
+			+ " FROM impact2_user_master um "
+			+ " LEFT JOIN designation_cd d ON um.desig_cd = d.desig_cd "
+			+ " LEFT JOIN impact2_profile_image upi ON um.hrms_code = upi.hrms_code "
+			+ " WHERE um.hrms_code = ? ";
 	
 	List<ProjectDet> fetchAllProjects(AuthUserDetails authUserDet);
 	
@@ -61,4 +76,6 @@ public interface CommonRepository {
 	EmployeeCountSummary getCountForReport();
 	
 	int releaseEmployee(String hrms);
+	
+	UserDet fetchCurrentUserDetails(String hrmsCd);
 }

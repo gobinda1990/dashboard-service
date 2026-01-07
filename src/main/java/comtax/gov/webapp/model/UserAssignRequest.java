@@ -1,7 +1,6 @@
 package comtax.gov.webapp.model;
 
-
-
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -9,9 +8,12 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class PostingDet {
+public class UserAssignRequest {
+
+	private String hrmsCode;
 	private String postingType;
-    private String officeType;
-    private String officeId;
+	private List<String> postingIds;
+	private List<ModuleRow> modules;
+	private List<PostingDet> postings;
 
 }

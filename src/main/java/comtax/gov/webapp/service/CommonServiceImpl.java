@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import comtax.gov.webapp.exception.ServiceException;
 import comtax.gov.webapp.model.AuthUserDetails;
 import comtax.gov.webapp.model.EmployeeCountSummary;
-import comtax.gov.webapp.model.PostingDet;
 import comtax.gov.webapp.model.RoleDet;
 import comtax.gov.webapp.model.common.ChargeDet;
 import comtax.gov.webapp.model.common.CircleDet;
@@ -99,13 +98,7 @@ public class CommonServiceImpl implements CommonService {
             throw new ServiceException("Failed to fetch designation list", dae);
         }
     }
-
-	@Override
-	public List<PostingDet> fetchAllPostings() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
+	
 	@Override
 	public List<RoleDet> fetchAllRoles() {
 		try {
@@ -191,6 +184,12 @@ public class CommonServiceImpl implements CommonService {
 	          log.error("DB error while releasing employee", dae);
 	          throw new ServiceException("Failed to releasing employee", dae);
 	      }
+	}
+
+	@Override
+	public UserDet getCurrentUserDetails(String hrmsCd) {
+		// TODO Auto-generated method stub
+		return commonRepository.fetchCurrentUserDetails(hrmsCd);
 	}
 }
 

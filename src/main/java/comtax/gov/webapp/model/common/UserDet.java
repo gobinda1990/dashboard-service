@@ -1,6 +1,7 @@
 package comtax.gov.webapp.model.common;
 
 import java.io.Serializable;
+import java.util.List;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -23,10 +24,18 @@ public class UserDet implements Serializable{
     private String fullName;
     private String email;
     private String phoneNo;    
-    private String desigCd;
+    private String desigName;
     private String gpfNo;   
     private String panNo;
     private String boId;
+    private String gender;
     private String profileImageUrl;
+    private List<String> role;    
+    private String postingType;    
+    private List<String> officeTypes;
+    private List<String> circleCds;
+    private List<String> chargeCds;
+    private List<String> officeCds;   
+  
 
 }
