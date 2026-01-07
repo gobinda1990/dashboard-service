@@ -1,6 +1,8 @@
 package comtax.gov.webapp.service;
 
 import java.util.List;
+
+import comtax.gov.webapp.model.AddModuleRequest;
 import comtax.gov.webapp.model.AssignRequest;
 import comtax.gov.webapp.model.UserAssignDet;
 import comtax.gov.webapp.model.UserAssignPostingDet;
@@ -29,5 +31,11 @@ public interface AssignService {
 	public String releaseUserDetails(UserReleaseRequest userRelReq,String hrmsCd);
 	
 	public List<UserAssignDet> getAllUsersWithPostings(String hrmsCd, String role);
+	
+	public boolean addModule(AddModuleRequest bn);
+	
+    public List<UserAssignDet> getAllUsersWithPostingsAndProjects(String hrmsCd,String role,String postingType) ;
+	
+	public List<UserAssignDet> getAssignedUserAM(String hrmsCd,String role) ;
 
 }

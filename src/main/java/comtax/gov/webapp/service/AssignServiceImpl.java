@@ -1,5 +1,6 @@
 package comtax.gov.webapp.service;
 
+import comtax.gov.webapp.model.AddModuleRequest;
 import comtax.gov.webapp.model.AssignRequest;
 import comtax.gov.webapp.model.ModuleRow;
 import comtax.gov.webapp.model.ReleaseModuleRequest;
@@ -168,8 +169,8 @@ public class AssignServiceImpl implements AssignService {
 	        boolean statusUpdated = false;
 
 	        // --- 1️⃣ Fetch posting count ---
-	        int count = assignEmpRepo.fetchUserPostingCount(hrmsCd);
-
+	        int count = assignEmpRepo.fetchUserPostingCount(userRelReq.getHrmsCode());
+          //  log.info("",count);
 	        // --- 2️⃣ Release Posting Data ---
 	        List<ReleasePostingRequest> postings = userRelReq.getReleasePostings();
 	        if (postings != null && !postings.isEmpty()) {
@@ -188,7 +189,7 @@ public class AssignServiceImpl implements AssignService {
 	            log.info("No module records to release for HRMS: {}", userRelReq.getHrmsCode());
 	        }
 
-	        // --- 4️⃣ Update user status if all postings released ---
+	        //  Update user status if all postings released ---
 	        if (postings != null && count == postings.size()) {
 	            statusUpdated = assignEmpRepo.updateUserStatus("A", userRelReq.getHrmsCode());
 	            log.info("User master status update result: {}", statusUpdated);
@@ -211,6 +212,40 @@ public class AssignServiceImpl implements AssignService {
 	                userRelReq != null ? userRelReq.getHrmsCode() : hrmsCd, e);
 	        throw new RuntimeException("Error releasing user details: " + e.getMessage(), e);
 	    }
+	}
+	
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public boolean addModule(AddModuleRequest bn) {		
+	
+		log.info("Starting addModule");
+		try {
+		
+			boolean addmodule = assignEmpRepo.addModule(bn);
+			if(!addmodule) {
+				log.warn("Primary posting not saved for HRMS {}");
+				return false;
+			}else {
+				return true;
+			}
+		
+			} catch (Exception e) {
+				log.error("Unexpected error during saveAllotData for HRMS {}", e.getMessage());
+				throw new RuntimeException(e.getMessage()); // Triggers rollback
+			}
+		
+		
+	}
+
+	@Override
+	public List<UserAssignDet> getAllUsersWithPostingsAndProjects(String hrmsCd, String role,String postingType) {
+		log.info("Fetching assigned employee data");
+		return assignEmpRepo.getAllUsersWithPostingsAndProjects(hrmsCd, role,postingType);
+	}
+	@Override
+	public List<UserAssignDet> getAssignedUserAM(String hrmsCd, String role) {
+		log.info("Fetching assigned employee data");
+		return assignEmpRepo.getAssignedUserAM(hrmsCd, role);
 	}
 
 

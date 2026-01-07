@@ -17,6 +17,7 @@ import comtax.gov.webapp.model.*;
 import comtax.gov.webapp.model.common.*;
 import comtax.gov.webapp.service.CommonService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -169,6 +170,24 @@ public class CommonController {
 			throw new ServiceException("Failed to release employee " + id, ex);
 		}
 	}
+	
+	@PostMapping("/add-module")
+	public ResponseEntity<ApiResponse<String>> add_module(@Valid @RequestBody AddModuleRequest req,
+			@AuthenticationPrincipal Jwt jwt, HttpServletRequest request) {
+		log.info("Received assignment request: {} by user {}", req, jwt.getSubject());
+		try {
+			commonService.addModule(req);
+			return buildSuccessResponse("Project Add Successfully", jwt.getSubject(), request);
+		} catch (ServiceException se) {
+			log.error("Service error during add Module {}: {}",  se.getMessage(), se);
+			throw se;
+			
+		} catch (Exception ex) {
+			log.error("Unexpected error during addmodule {}: {}",  ex.getMessage(), ex);
+			throw new ServiceException("Unexpected error during add Module " , ex);
+			
+		}
+	}
 
 	// =====================================================
 	// === Utility Methods ================================
@@ -199,5 +218,11 @@ public class CommonController {
 		return ResponseEntity.status(HttpStatus.NO_CONTENT)
 				.body(ApiResponse.<List<T>>builder().status(HttpStatus.NO_CONTENT.value()).message(message)
 						.data(Collections.emptyList()).success(true).path(request.getRequestURI()).build());
+	}
+	
+	private ResponseEntity<ApiResponse<String>> buildSuccessResponse(String msg, String hrmsCode,
+			HttpServletRequest request) {
+		return ResponseEntity.ok(ApiResponse.<String>builder().status(HttpStatus.OK.value()).message(msg).data(hrmsCode)
+				.success(true).path(request.getRequestURI()).build());
 	}
 }

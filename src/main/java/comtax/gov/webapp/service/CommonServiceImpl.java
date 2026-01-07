@@ -3,7 +3,10 @@ package comtax.gov.webapp.service;
 import java.util.List;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import comtax.gov.webapp.exception.ServiceException;
+import comtax.gov.webapp.model.AddModuleRequest;
 import comtax.gov.webapp.model.AuthUserDetails;
 import comtax.gov.webapp.model.EmployeeCountSummary;
 import comtax.gov.webapp.model.RoleDet;
@@ -14,7 +17,6 @@ import comtax.gov.webapp.model.common.OfficeDet;
 import comtax.gov.webapp.model.common.ProjectDet;
 import comtax.gov.webapp.model.common.UserDet;
 import comtax.gov.webapp.repo.CommonRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -191,5 +193,29 @@ public class CommonServiceImpl implements CommonService {
 		// TODO Auto-generated method stub
 		return commonRepository.fetchCurrentUserDetails(hrmsCd);
 	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public boolean addModule(AddModuleRequest bn) {		
+	
+		log.info("Starting addModule");
+		try {
+		
+			boolean addmodule = commonRepository.addModule(bn);
+			if(!addmodule) {
+				log.warn("Primary posting not saved for HRMS {}");
+				return false;
+			}else {
+				return true;
+			}
+		
+			} catch (Exception e) {
+				log.error("Unexpected error during saveAllotData for HRMS {}", e.getMessage());
+				throw new RuntimeException(e.getMessage()); // Triggers rollback
+			}
+		
+		
+	}
+
 }
 

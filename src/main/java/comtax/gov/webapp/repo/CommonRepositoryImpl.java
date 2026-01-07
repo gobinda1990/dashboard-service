@@ -3,13 +3,19 @@ package comtax.gov.webapp.repo;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+
+import comtax.gov.webapp.exception.DataSaveException;
+import comtax.gov.webapp.exception.DatabaseOperationException;
+import comtax.gov.webapp.model.AddModuleRequest;
 import comtax.gov.webapp.model.AuthUserDetails;
 import comtax.gov.webapp.model.EmployeeCountSummary;
 import comtax.gov.webapp.model.RoleDet;
@@ -28,6 +34,8 @@ import lombok.extern.slf4j.Slf4j;
 public class CommonRepositoryImpl implements CommonRepository {
 
 	private final JdbcTemplate jdbcTemplate;
+
+	private static final String POSTING_TYPE = "M";
 
 	@Override
 	public List<ProjectDet> fetchAllProjects(AuthUserDetails authUserDet) {
@@ -140,7 +148,7 @@ public class CommonRepositoryImpl implements CommonRepository {
 	@Override
 	public void uploadProfileImg(String hrms, String img_url) {
 
-		jdbcTemplate.update(INSERT_PROFILE_IMG_URL_SQL, hrms, img_url, "L");
+		jdbcTemplate.update(UPSERT_PROFILE_IMG_URL_SQL, hrms, img_url, "L");
 
 	}
 
@@ -168,74 +176,103 @@ public class CommonRepositoryImpl implements CommonRepository {
 
 	@Override
 	public UserDet fetchCurrentUserDetails(String hrmsCode) {
-
 		log.info("Fetching user details for HRMS Code: {}", hrmsCode);
+
 		// Step 1: Fetch base user info
-		String sqlUser = "SELECT hrms_code, full_name FROM impact2_user_master WHERE hrms_code = ?";
-
-		UserDet user = jdbcTemplate.queryForObject(sqlUser, (rs, rowNum) -> {
-			UserDet u = new UserDet();
-			u.setHrmsCode(rs.getString("hrms_code"));
-			u.setFullName(rs.getString("full_name"));
-			return u;
-		}, hrmsCode);
-
-		if (user == null) {
+		UserDet user;
+		try {
+			user = jdbcTemplate.queryForObject(SQL_USER, (rs, rowNum) -> {
+				var u = new UserDet();
+				u.setHrmsCode(rs.getString("hrms_code"));
+				u.setFullName(rs.getString("full_name"));
+				return u;
+			}, hrmsCode);
+		} catch (EmptyResultDataAccessException e) {
 			log.warn("No user found for HRMS Code: {}", hrmsCode);
 			return null;
 		}
-		// Fetch distinct office types
-		String sqlOfficeTypes = "SELECT DISTINCT office_type FROM impact2_user_posting_det WHERE hrms_code = ? AND posting_type = 'M'";
 
-		List<String> officeTypes = jdbcTemplate.query(sqlOfficeTypes, ps -> ps.setString(1, hrmsCode),
-				(rs, rowNum) -> rs.getString("office_type"));
+		// Step 2: Fetch office types
+		var officeTypes = jdbcTemplate.query(SQL_OFFICE_TYPES, ps -> {
+			ps.setString(1, hrmsCode);
+			ps.setString(2, POSTING_TYPE);
+		}, (rs, rowNum) -> rs.getString("office_type"));
+
 		user.setOfficeTypes(officeTypes);
-
 		log.info("Office types for user {}: {}", hrmsCode, officeTypes);
-		List<String> circleCds = new ArrayList<>();
-		List<String> chargeCds = new ArrayList<>();
-		List<String> officeCds = new ArrayList<>();
+
+		var circleCds = new ArrayList<String>();
+		var chargeCds = new ArrayList<String>();
+		var officeCds = new ArrayList<String>();
 
 		for (String officeType : officeTypes) {
 			switch (officeType) {
 			case "CI" -> {
-				String circleQuery = "SELECT DISTINCT office_cd FROM impact2_user_posting_det WHERE hrms_code = ? "
-						+ " AND office_type = 'CI' AND posting_type = 'M'";
-				circleCds = jdbcTemplate.query(circleQuery, ps -> ps.setString(1, hrmsCode),
-						(rs, rowNum) -> rs.getString("office_cd"));
+				circleCds.addAll(jdbcTemplate.query(SQL_CIRCLE, ps -> {
+					ps.setString(1, hrmsCode);
+					ps.setString(2, POSTING_TYPE);
+				}, (rs, rowNum) -> rs.getString("office_cd")));
+
 				user.setCircleCds(circleCds);
 				log.info("Circle offices for {}: {}", hrmsCode, circleCds);
 
 				if (!circleCds.isEmpty()) {
-					String chargeQuery = String.format(
-							"SELECT DISTINCT charge_cd FROM charge_cd WHERE circle_cd IN (%s)",
-							circleCds.stream().map(cd -> "'" + cd + "'").collect(Collectors.joining(",")));
-					chargeCds = jdbcTemplate.query(chargeQuery, (rs, rowNum) -> rs.getString("charge_cd"));
+					var placeholders = String.join(",", Collections.nCopies(circleCds.size(), "?"));
+					var chargeQuery = String.format(SQL_CHARGE_BY_CIRCLE_TEMPLATE, placeholders);
+					chargeCds.addAll(jdbcTemplate.query(chargeQuery, ps -> {
+						for (int i = 0; i < circleCds.size(); i++) {
+							ps.setString(i + 1, circleCds.get(i));
+						}
+					}, (rs, rowNum) -> rs.getString("charge_cd")));
 					user.setChargeCds(chargeCds);
-					log.info("Charges under circles: {}", chargeCds);
+					log.info("Charges under circles {}: {}", circleCds, chargeCds);
 				}
 			}
 			case "CH" -> {
-				String chargeQuery = " SELECT DISTINCT office_cd FROM impact2_user_posting_det WHERE hrms_code = ?"
-						+ " AND office_type = 'CH' AND posting_type = 'M'";
-				chargeCds = jdbcTemplate.query(chargeQuery, ps -> ps.setString(1, hrmsCode),
-						(rs, rowNum) -> rs.getString("office_cd"));
+				chargeCds.addAll(jdbcTemplate.query(SQL_CHARGE, ps -> {
+					ps.setString(1, hrmsCode);
+					ps.setString(2, POSTING_TYPE);
+				}, (rs, rowNum) -> rs.getString("office_cd")));
 				user.setChargeCds(chargeCds);
 				log.info("Charge offices for {}: {}", hrmsCode, chargeCds);
 			}
-
 			case "OF" -> {
-				String officeQuery = "SELECT DISTINCT office_cd FROM impact2_user_posting_det WHERE hrms_code = ?"
-						+ " AND office_type = 'OF' AND posting_type = 'M'";
-				officeCds = jdbcTemplate.query(officeQuery, ps -> ps.setString(1, hrmsCode),
-						(rs, rowNum) -> rs.getString("office_cd"));
+				officeCds.addAll(jdbcTemplate.query(SQL_OFFICE, ps -> {
+					ps.setString(1, hrmsCode);
+					ps.setString(2, POSTING_TYPE);
+				}, (rs, rowNum) -> rs.getString("office_cd")));
 				user.setOfficeCds(officeCds);
 				log.info("Office codes for {}: {}", hrmsCode, officeCds);
 			}
+			default -> log.debug("Unhandled office type: {}", officeType);
 			}
 		}
 		log.info("Fetched user details successfully for HRMS Code: {}", hrmsCode);
 		return user;
+	}
+
+	@Override
+	public boolean addModule(AddModuleRequest bn) {
+		log.info("Saving main allotment data for HRMS: {}");
+		try {
+			int rows = jdbcTemplate.update(INSERT_PROJECT, bn.getModuleName(),bn.getModuleUrl());
+
+			if (rows > 0) {
+				log.debug("Allotment data saved successfully for HRMS: {}");
+				return true;
+			} else {
+				log.warn("No allotment data inserted for HRMS: {}");
+				return false;
+			}
+
+		} catch (DataAccessException dae) {
+			log.error("Database error saving allotment data for HRMS {}", dae);
+			throw new DatabaseOperationException("Error saving allotment data for HRMS " , dae);
+		} catch (Exception e) {
+			log.error("Unexpected error saving allotment data for HRMS {}", e);
+			throw new DataSaveException("Unexpected error saving allotment data for HRMS " , e);
+		}
+		//return false;
 	}
 
 }

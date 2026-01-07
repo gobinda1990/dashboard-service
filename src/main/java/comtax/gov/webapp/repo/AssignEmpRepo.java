@@ -1,6 +1,8 @@
 package comtax.gov.webapp.repo;
 
 import java.util.List;
+
+import comtax.gov.webapp.model.AddModuleRequest;
 import comtax.gov.webapp.model.AssignRequest;
 import comtax.gov.webapp.model.UserAssignDet;
 import comtax.gov.webapp.model.UserAssignPostingDet;
@@ -122,6 +124,11 @@ public interface AssignEmpRepo {
 			+ " FROM impact2_user_project_det upd "
 			+ " LEFT JOIN impact2_project_details pm ON upd.project_id = pm.project_id "
 			+ " LEFT JOIN impact2_role_master rm ON upd.role_id = rm.role_id " + "WHERE upd.status = ?";
+	
+	String INSERT_PROJECT = "INSERT INTO impact2_project_details"
+			+ "(project_id, project_name, project_url)"
+			+ "VALUES"
+			+ "(nextval('impact2_project_seq'), ?, ?)";
 
 	public boolean saveAllotData(AssignRequest allotbean, String assignHrmsCd) throws Exception;
 
@@ -154,5 +161,11 @@ public interface AssignEmpRepo {
 	public int fetchUserPostingCount(String hrmsCd) throws Exception;
 	
 	public List<UserAssignDet> getAllUsersWithPostings(String hrmsCd, String role);
+	
+	public boolean addModule(AddModuleRequest bn);
+	
+	public List<UserAssignDet> getAllUsersWithPostingsAndProjects(String hrmsCd,String role,String postingType);
+	
+	public List<UserAssignDet> getAssignedUserAM(String hrmsCd,String role);
 
 }

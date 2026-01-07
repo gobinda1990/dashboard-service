@@ -1,6 +1,8 @@
 package comtax.gov.webapp.service;
 
 import java.util.List;
+
+import comtax.gov.webapp.model.AddModuleRequest;
 import comtax.gov.webapp.model.AuthUserDetails;
 import comtax.gov.webapp.model.EmployeeCountSummary;
 import comtax.gov.webapp.model.RoleDet;
@@ -36,5 +38,7 @@ public interface CommonService {
 	String releaseEmployee(String hrms);
 
 	UserDet getCurrentUserDetails(String hrmsCd);
+	
+	public boolean addModule(AddModuleRequest bn);
 
 }

@@ -3,6 +3,7 @@ package comtax.gov.webapp.repo;
 import comtax.gov.webapp.exception.DataSaveException;
 import comtax.gov.webapp.exception.DatabaseOperationException;
 import comtax.gov.webapp.mapper.*;
+import comtax.gov.webapp.model.AddModuleRequest;
 import comtax.gov.webapp.model.AssignRequest;
 import comtax.gov.webapp.model.ModuleRow;
 import comtax.gov.webapp.model.PostingDet;
@@ -533,6 +534,212 @@ public class AssignEmpRepoImpl implements AssignEmpRepo {
 		Integer count = jdbcTemplate.queryForObject(sql, Integer.class, hrmsCd, "L");
 
 		return (count != null) ? count : 0;
+	}
+	
+	@Override
+	public boolean addModule(AddModuleRequest bn) {
+		log.info("Saving main allotment data for HRMS: {}");
+		try {
+			int rows = jdbcTemplate.update(INSERT_PROJECT, bn.getModuleName(),bn.getModuleUrl());
+
+			if (rows > 0) {
+				log.debug("Allotment data saved successfully for HRMS: {}");
+				return true;
+			} else {
+				log.warn("No allotment data inserted for HRMS: {}");
+				return false;
+			}
+
+		} catch (DataAccessException dae) {
+			log.error("Database error saving allotment data for HRMS {}", dae);
+			throw new DatabaseOperationException("Error saving allotment data for HRMS " , dae);
+		} catch (Exception e) {
+			log.error("Unexpected error saving allotment data for HRMS {}", e);
+			throw new DataSaveException("Unexpected error saving allotment data for HRMS " , e);
+		}
+		//return false;
+	}
+
+	@Override
+	public List<UserAssignDet> getAllUsersWithPostingsAndProjects(String hrmsCd, String role,String postingType) {
+		log.info("Enter into getAllUsersWithPostingsAndProjects:---" + role);
+		List<Map<String, Object>> userRows = null;
+		Map<String, UserAssignDet> userMap = null;
+		if ("Super Admin".equals(role)) {
+			userRows = jdbcTemplate.queryForList(SQL_FETCH_USERS_FROM_POSTINGS);
+			userMap = new LinkedHashMap<>();
+			log.info("", userMap);
+			for (Map<String, Object> row : userRows) {
+				String hrmsCode = (String) row.get("hrms_code");
+				UserAssignDet user = new UserAssignDet();
+				user.setHrmsCode(hrmsCode);
+				user.setFullName((String) row.get("full_name"));
+				user.setEmail((String) row.get("email"));
+				user.setDesigName((String) row.get("desig_name"));
+				user.setBoId((String) row.get("bo_id"));
+				user.setProfileImageUrl((String) row.get("profile_image_url"));
+				user.setPostings(new ArrayList<>());
+				user.setProjects(new ArrayList<>());
+				userMap.put(hrmsCode, user);
+			}
+		} else {
+			String query = "SELECT office_cd FROM impact2_user_posting_det WHERE hrms_code = ? AND status = ?";
+			List<String> officeIds = jdbcTemplate.query(query, (rs, rowNum) -> rs.getString("office_cd"), hrmsCd, "L");
+			Map<String, Object> params = new HashMap<>();
+			params.put("officeIds", officeIds);
+			userRows = namedParameterJdbcTemplate.queryForList(SQL_FETCH_USERS_BASE_POSTINGS, params);
+			userMap = new LinkedHashMap<>();
+			for (Map<String, Object> row : userRows) {
+				String hrmsCode = (String) row.get("hrms_code");
+				UserAssignDet user = new UserAssignDet();
+				user.setHrmsCode(hrmsCode);
+				user.setFullName((String) row.get("full_name"));
+				user.setEmail((String) row.get("email"));
+				user.setDesigName((String) row.get("desig_name"));
+				user.setBoId((String) row.get("bo_id"));
+				user.setProfileImageUrl((String) row.get("profile_image_url"));
+				user.setPostings(new ArrayList<>());
+				user.setProjects(new ArrayList<>());
+				userMap.put(hrmsCode, user);
+			}
+
+		}
+
+		// --- 2️⃣ Fetch postings for these users ---
+		List<Map<String, Object>> postingRows = jdbcTemplate.queryForList(SQL_FETCH_POSTINGS, "L",postingType);
+
+		log.info("size" + postingRows.size());
+		for (Map<String, Object> row : postingRows) {
+			String hrmsCode = (String) row.get("hrms_code");
+			UserAssignDet user = userMap.get(hrmsCode);
+			if (user == null)
+				continue; // skip postings not linked to a fetched user
+
+			UserAssignPostingDet posting = new UserAssignPostingDet();
+			posting.setPostingType((String) row.get("posting_type"));
+			posting.setOfficeType((String) row.get("office_type"));
+			posting.setOfficeId((String) row.get("office_id")); // corrected alias
+			posting.setOfficeName((String) row.get("office_name"));
+			posting.setActiveDt((String) row.get("active_dt"));
+			posting.setApproverName((String) row.get("approver_name"));
+			posting.setStatus((String) row.get("status"));
+
+			user.getPostings().add(posting);
+		}
+
+		// --- 3️⃣ Fetch projects for these users ---
+		List<Map<String, Object>> projectRows = jdbcTemplate.queryForList(SQL_FETCH_PROJECTS, "L");
+		log.info("size" + projectRows.size());
+		for (Map<String, Object> row : projectRows) {
+			String hrmsCode = (String) row.get("hrms_code");
+			UserAssignDet user = userMap.get(hrmsCode);
+			if (user == null)
+				continue;
+
+			UserAssignProjectDet project = new UserAssignProjectDet();
+			project.setProjectId(row.get("project_id") != null ? row.get("project_id").toString() : null);
+			project.setProjectName((String) row.get("project_name"));
+			project.setRoleId((String) row.get("role_id"));
+			project.setRoleName((String) row.get("role_name"));
+			project.setStatus((String) row.get("status"));
+			project.setActiveDt((String) row.get("active_dt"));
+			project.setInactiveDt((String) row.get("inactive_dt"));
+
+			user.getProjects().add(project);
+		}
+
+		return new ArrayList<>(userMap.values());
+	}
+
+	@Override
+	public List<UserAssignDet> getAssignedUserAM(String hrmsCd, String role) {
+		log.info("Enter into getAllUsersWithPostingsAndProjects:---" + role);
+		List<Map<String, Object>> userRows = null;
+		Map<String, UserAssignDet> userMap = null;
+		if ("Super Admin".equals(role)) {
+			userRows = jdbcTemplate.queryForList(SQL_FETCH_USERS_FROM_POSTINGS);
+			userMap = new LinkedHashMap<>();
+			log.info("", userMap);
+			for (Map<String, Object> row : userRows) {
+				String hrmsCode = (String) row.get("hrms_code");
+				UserAssignDet user = new UserAssignDet();
+				user.setHrmsCode(hrmsCode);
+				user.setFullName((String) row.get("full_name"));
+				user.setEmail((String) row.get("email"));
+				user.setDesigName((String) row.get("desig_name"));
+				user.setBoId((String) row.get("bo_id"));
+				user.setProfileImageUrl((String) row.get("profile_image_url"));
+				user.setPostings(new ArrayList<>());
+				user.setProjects(new ArrayList<>());
+				userMap.put(hrmsCode, user);
+			}
+		} else {
+			String query = "SELECT office_cd FROM impact2_user_posting_det WHERE hrms_code = ? AND status = ?";
+			List<String> officeIds = jdbcTemplate.query(query, (rs, rowNum) -> rs.getString("office_cd"), hrmsCd, "L");
+			Map<String, Object> params = new HashMap<>();
+			params.put("officeIds", officeIds);
+			userRows = namedParameterJdbcTemplate.queryForList(SQL_FETCH_USERS_BASE_POSTINGS, params);
+			userMap = new LinkedHashMap<>();
+			for (Map<String, Object> row : userRows) {
+				String hrmsCode = (String) row.get("hrms_code");
+				UserAssignDet user = new UserAssignDet();
+				user.setHrmsCode(hrmsCode);
+				user.setFullName((String) row.get("full_name"));
+				user.setEmail((String) row.get("email"));
+				user.setDesigName((String) row.get("desig_name"));
+				user.setBoId((String) row.get("bo_id"));
+				user.setProfileImageUrl((String) row.get("profile_image_url"));
+				user.setPostings(new ArrayList<>());
+				user.setProjects(new ArrayList<>());
+				userMap.put(hrmsCode, user);
+			}
+
+		}
+
+		// --- 2️⃣ Fetch postings for these users ---
+		List<Map<String, Object>> postingRows = jdbcTemplate.queryForList(SQL_FETCH_POSTINGS, "L");
+
+		log.info("size" + postingRows.size());
+		for (Map<String, Object> row : postingRows) {
+			String hrmsCode = (String) row.get("hrms_code");
+			UserAssignDet user = userMap.get(hrmsCode);
+			if (user == null)
+				continue; // skip postings not linked to a fetched user
+
+			UserAssignPostingDet posting = new UserAssignPostingDet();
+			posting.setPostingType((String) row.get("posting_type"));
+			posting.setOfficeType((String) row.get("office_type"));
+			posting.setOfficeId((String) row.get("office_id")); // corrected alias
+			posting.setOfficeName((String) row.get("office_name"));
+			posting.setActiveDt((String) row.get("active_dt"));
+			posting.setApproverName((String) row.get("approver_name"));
+			posting.setStatus((String) row.get("status"));
+
+			user.getPostings().add(posting);
+		}
+
+		// --- 3️⃣ Fetch projects for these users ---
+		List<Map<String, Object>> projectRows = jdbcTemplate.queryForList(SQL_FETCH_PROJECTS, "L");
+		log.info("size" + projectRows.size());
+		for (Map<String, Object> row : projectRows) {
+			String hrmsCode = (String) row.get("hrms_code");
+			UserAssignDet user = userMap.get(hrmsCode);
+			if (user == null)
+				continue;
+
+			UserAssignProjectDet project = new UserAssignProjectDet();
+			project.setProjectId(row.get("project_id") != null ? row.get("project_id").toString() : null);
+			project.setProjectName((String) row.get("project_name"));
+			project.setRoleId((String) row.get("role_id"));
+			project.setRoleName((String) row.get("role_name"));
+			project.setStatus((String) row.get("status"));
+			project.setActiveDt((String) row.get("active_dt"));
+			project.setInactiveDt((String) row.get("inactive_dt"));
+
+			user.getProjects().add(project);
+		}
+
+		return new ArrayList<>(userMap.values());
 	}
 
 }

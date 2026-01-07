@@ -11,6 +11,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import comtax.gov.webapp.exception.ServiceException;
 import comtax.gov.webapp.model.*;
 import comtax.gov.webapp.model.common.*;
 import comtax.gov.webapp.service.AssignService;
@@ -199,6 +201,24 @@ public class UserController {
 		return ResponseEntity.ok(ApiResponse.<String>builder().status(HttpStatus.OK.value()).success(true)
 				.message("Employee release processed successfully.").data(req.getHrmsCode())
 				.path(request.getRequestURI()).build());
+	}
+	
+	@PostMapping("/add-module")
+	public ResponseEntity<ApiResponse<String>> add_module(@Valid @RequestBody AddModuleRequest req,
+			@AuthenticationPrincipal Jwt jwt, HttpServletRequest request) {
+		log.info("Received assignment request: {} by user {}", req, jwt.getSubject());
+		try {
+			assignService.addModule(req);
+			return buildSuccessResponse("Project Add Successfully", jwt.getSubject(), request);
+		} catch (ServiceException se) {
+			log.error("Service error during add Module {}: {}",  se.getMessage(), se);
+			throw se;
+			
+		} catch (Exception ex) {
+			log.error("Unexpected error during addmodule {}: {}",  ex.getMessage(), ex);
+			throw new ServiceException("Unexpected error during add Module " , ex);
+			
+		}
 	}
 
 	// ===========================
