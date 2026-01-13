@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/dashboard")
 @Slf4j
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "https://10.153.43.8:8084")
 public class CommonController {
 
 	private final CommonService commonService;
