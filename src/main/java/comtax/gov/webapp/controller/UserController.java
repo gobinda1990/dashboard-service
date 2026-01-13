@@ -25,10 +25,10 @@ import lombok.extern.slf4j.Slf4j;
  * operations. Optimized for production performance and maintainability.
  */
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/dashboard/users")
 @Slf4j
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*") // Consider restricting or externalizing allowed origins for production
+@CrossOrigin(origins = "https://10.153.43.8:8084")
 @Validated
 public class UserController {
 

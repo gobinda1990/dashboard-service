@@ -189,8 +189,7 @@ public class CommonServiceImpl implements CommonService {
 	}
 
 	@Override
-	public UserDet getCurrentUserDetails(String hrmsCd) {
-		// TODO Auto-generated method stub
+	public UserDet getCurrentUserDetails(String hrmsCd) {		
 		return commonRepository.fetchCurrentUserDetails(hrmsCd);
 	}
 

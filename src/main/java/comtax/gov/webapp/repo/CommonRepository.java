@@ -63,13 +63,13 @@ public interface CommonRepository {
 	 String SQL_USER =
             "SELECT hrms_code, full_name FROM impact2_user_master WHERE hrms_code = ?";
      final String SQL_OFFICE_TYPES =
-            "SELECT DISTINCT office_type FROM impact2_user_posting_det WHERE hrms_code = ? AND posting_type = ?";
+            "SELECT DISTINCT office_type FROM impact2_user_posting_det WHERE hrms_code = ? AND posting_type = ? and status=? ";
      final String SQL_CIRCLE =
-            "SELECT DISTINCT office_cd FROM impact2_user_posting_det WHERE hrms_code = ? AND office_type = 'CI' AND posting_type = ?";
+            "SELECT DISTINCT office_cd FROM impact2_user_posting_det WHERE hrms_code = ? AND office_type = 'CI' AND posting_type = ? and status=?";
      final String SQL_CHARGE =
-            "SELECT DISTINCT office_cd FROM impact2_user_posting_det WHERE hrms_code = ? AND office_type = 'CH' AND posting_type = ?";
+            "SELECT DISTINCT office_cd FROM impact2_user_posting_det WHERE hrms_code = ? AND office_type = 'CH' AND posting_type = ? and status=?";
      final String SQL_OFFICE =
-            "SELECT DISTINCT office_cd FROM impact2_user_posting_det WHERE hrms_code = ? AND office_type = 'OF' AND posting_type = ?";
+            "SELECT DISTINCT office_cd FROM impact2_user_posting_det WHERE hrms_code = ? AND office_type = 'OF' AND posting_type = ? and status=?";
     final String SQL_CHARGE_BY_CIRCLE_TEMPLATE =
             "SELECT DISTINCT charge_cd FROM charge_cd WHERE circle_cd IN (%s)";
     

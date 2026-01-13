@@ -36,6 +36,10 @@ public class CommonRepositoryImpl implements CommonRepository {
 	private final JdbcTemplate jdbcTemplate;
 
 	private static final String POSTING_TYPE = "M";
+	
+	private static final String STATUS_ACTIVE = "L";
+
+	private static final String STATUS_INACTIVE = "A";
 
 	@Override
 	public List<ProjectDet> fetchAllProjects(AuthUserDetails authUserDet) {
@@ -196,6 +200,7 @@ public class CommonRepositoryImpl implements CommonRepository {
 		var officeTypes = jdbcTemplate.query(SQL_OFFICE_TYPES, ps -> {
 			ps.setString(1, hrmsCode);
 			ps.setString(2, POSTING_TYPE);
+			ps.setString(3, STATUS_ACTIVE);
 		}, (rs, rowNum) -> rs.getString("office_type"));
 
 		user.setOfficeTypes(officeTypes);
@@ -211,6 +216,7 @@ public class CommonRepositoryImpl implements CommonRepository {
 				circleCds.addAll(jdbcTemplate.query(SQL_CIRCLE, ps -> {
 					ps.setString(1, hrmsCode);
 					ps.setString(2, POSTING_TYPE);
+					ps.setString(3, STATUS_ACTIVE);
 				}, (rs, rowNum) -> rs.getString("office_cd")));
 
 				user.setCircleCds(circleCds);
@@ -232,6 +238,7 @@ public class CommonRepositoryImpl implements CommonRepository {
 				chargeCds.addAll(jdbcTemplate.query(SQL_CHARGE, ps -> {
 					ps.setString(1, hrmsCode);
 					ps.setString(2, POSTING_TYPE);
+					ps.setString(3, STATUS_ACTIVE);
 				}, (rs, rowNum) -> rs.getString("office_cd")));
 				user.setChargeCds(chargeCds);
 				log.info("Charge offices for {}: {}", hrmsCode, chargeCds);
@@ -240,6 +247,7 @@ public class CommonRepositoryImpl implements CommonRepository {
 				officeCds.addAll(jdbcTemplate.query(SQL_OFFICE, ps -> {
 					ps.setString(1, hrmsCode);
 					ps.setString(2, POSTING_TYPE);
+					ps.setString(3, STATUS_ACTIVE);
 				}, (rs, rowNum) -> rs.getString("office_cd")));
 				user.setOfficeCds(officeCds);
 				log.info("Office codes for {}: {}", hrmsCode, officeCds);
