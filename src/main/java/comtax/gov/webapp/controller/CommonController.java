@@ -62,6 +62,24 @@ public class CommonController {
 			throw new ServiceException("Failed to fetch project details for HRMS: " + userId, ex);
 		}
 	}
+	
+	// =====================================================
+		// === REPORTS & ACTIONS ===============================
+		// =====================================================
+
+		@GetMapping("/reports")
+		public ResponseEntity<ApiResponse<EmployeeCountSummary>> getReportOfEmployee(@AuthenticationPrincipal Jwt jwt,
+				HttpServletRequest request) {
+			String hrms = jwt.getSubject();
+			log.info("Generating employee count summary for HRMS: {}", hrms);
+			try {
+				EmployeeCountSummary summary = commonService.getCountForReport();
+				return ok(summary, "Report fetched successfully", request);
+			} catch (Exception ex) {
+				log.error("Error fetching employee report: {}", ex.getMessage(), ex);
+				throw new ServiceException("Failed to generate employee report", ex);
+			}
+		}	
 
 	// =====================================================
 	// === PROFILE MANAGEMENT ==============================
@@ -139,37 +157,7 @@ public class CommonController {
 	}
 	
 
-	// =====================================================
-	// === REPORTS & ACTIONS ===============================
-	// =====================================================
-
-	@GetMapping("/reports")
-	public ResponseEntity<ApiResponse<EmployeeCountSummary>> getReportOfEmployee(@AuthenticationPrincipal Jwt jwt,
-			HttpServletRequest request) {
-		String hrms = jwt.getSubject();
-		log.info("Generating employee count summary for HRMS: {}", hrms);
-		try {
-			EmployeeCountSummary summary = commonService.getCountForReport();
-			return ok(summary, "Report fetched successfully", request);
-		} catch (Exception ex) {
-			log.error("Error fetching employee report: {}", ex.getMessage(), ex);
-			throw new ServiceException("Failed to generate employee report", ex);
-		}
-	}
-
-	@GetMapping("/release-emp/{id}")
-	public ResponseEntity<ApiResponse<String>> releaseEmployee(@AuthenticationPrincipal Jwt jwt,
-			@PathVariable("id") String id, HttpServletRequest request) {
-		String approver = jwt.getSubject();
-		log.info("Releasing employee {} by approver {}", id, approver);
-		try {
-			String message = commonService.releaseEmployee(id);
-			return ok(message, "Employee released successfully", request);
-		} catch (Exception ex) {
-			log.error("Error releasing employee {}: {}", id, ex.getMessage(), ex);
-			throw new ServiceException("Failed to release employee " + id, ex);
-		}
-	}
+	
 	
 	@PostMapping("/add-module")
 	public ResponseEntity<ApiResponse<String>> add_module(@Valid @RequestBody AddModuleRequest req,

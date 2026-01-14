@@ -11,8 +11,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import comtax.gov.webapp.exception.ServiceException;
 import comtax.gov.webapp.model.*;
 import comtax.gov.webapp.model.common.*;
 import comtax.gov.webapp.service.AssignService;
@@ -35,10 +33,30 @@ public class UserController {
 	private final AssignService assignService;
 	private final CommonService commonService;
 
+	// = User Details ============
+
+	@GetMapping("/user-details")
+	public ResponseEntity<ApiResponse<List<UserDet>>> getUserDet(@AuthenticationPrincipal Jwt jwt,
+			HttpServletRequest request) {
+		String requester = jwt.getSubject();
+		log.info("Enter into getUserDet method request by {}:",requester);
+		return buildListResponse(commonService.fetchAllUserDetails(), "User details fetched successfully",
+				"No user details found", request);
+	}
+	
+	@GetMapping("/user-details/{hrmsCd}")
+	public ResponseEntity<ApiResponse<UserDet>> getUserDetails(@PathVariable String hrmsCd,
+			@AuthenticationPrincipal Jwt jwt) {
+		log.info("Enter into getUserDetails() Fetching user details for HRMS: {}", hrmsCd);
+		UserDet user = commonService.getProfileDetails(hrmsCd);
+		user.setRole(extractRoles(jwt).stream().map(String::toLowerCase).collect(Collectors.toList()));
+		return ResponseEntity.ok(ApiResponse.success("User details fetched successfully", user));
+	}
+
 	@GetMapping("/current-user")
 	public ResponseEntity<ApiResponse<UserDet>> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
 		String hrmsCode = jwt.getSubject();
-		log.info("Fetching current user details for HRMS: {}", hrmsCode);
+		log.info("Enter into getCurrentUser method to get current user details for HRMS: {}", hrmsCode);
 
 		try {
 			UserDet user = commonService.getCurrentUserDetails(hrmsCode);
@@ -52,42 +70,35 @@ public class UserController {
 			return ResponseEntity.ok(ApiResponse.<UserDet>builder().status(HttpStatus.OK.value()).success(true)
 					.message("Current user fetched successfully").data(user).build());
 		} catch (Exception ex) {
-			log.error("Error fetching current user {}: {}", hrmsCode, ex.getMessage(), ex);
+			log.error("Exception into  getCurrentUser method(): {}", hrmsCode, ex.getMessage());
 			return ResponseEntity.internalServerError()
 					.body(ApiResponse.<UserDet>builder().status(HttpStatus.INTERNAL_SERVER_ERROR.value()).success(false)
 							.message("Failed to fetch current user").build());
 		}
 	}
 
-	// ===========================
-	// = Charge Details ==========
-	// ===========================
 
+	// = Charge Details ==========
 	@GetMapping("/charge-details")
 	public ResponseEntity<ApiResponse<List<ChargeDet>>> getAllCharges(HttpServletRequest request) {
-		log.info("Fetching all charge details");
+		log.info("Enter into getAllCharges() method to Fetching all charge details");
 		return buildListResponse(commonService.fetchAllCharges(), "Charge details fetched successfully",
 				"No charge details found", request);
 	}
 
-	// ===========================
+	
 	// = Circle Details ==========
-	// ===========================
-
 	@GetMapping("/circle-details")
 	public ResponseEntity<ApiResponse<List<CircleDet>>> getAllCircles(HttpServletRequest request) {
-		log.info("Fetching all circle details");
+		log.info("Enter into getAllCircles() method to Fetching all circle details");
 		return buildListResponse(commonService.fetchAllCircles(), "Circle details fetched successfully",
 				"No circle details found", request);
-	}
-
-	// ===========================
+	}	
+	
 	// = Office Details ==========
-	// ===========================
-
 	@GetMapping("/office-details")
 	public ResponseEntity<ApiResponse<List<OfficeDet>>> getAllOffices(HttpServletRequest request) {
-		log.info("Fetching all office details");
+		log.info("Enter into getAllOffices() method Fetching all office details");
 		return buildListResponse(commonService.fetchAllOffices(), "Office details fetched successfully",
 				"No office details found", request);
 	}
@@ -99,59 +110,26 @@ public class UserController {
 	@GetMapping("/project-details/{hrmsCd}")
 	public ResponseEntity<ApiResponse<List<UserAssignProjectDet>>> getUserProjectDet(@PathVariable String hrmsCd,
 			HttpServletRequest request) {
-		log.info("Fetching user project details for HRMS: {}", hrmsCd);
+		log.info("Enter into getUserProjectDet() method to Fetching user project details for HRMS: {}", hrmsCd);
 		return buildListResponse(assignService.fetchUserProjectDet(hrmsCd), "Project details fetched successfully",
 				"No project details found", request);
-	}
-
-	// ===========================
+	}	
 	// = Posting Details =========
-	// ===========================
-
 	@GetMapping("/posting-details/{hrmsCd}")
 	public ResponseEntity<ApiResponse<List<UserAssignPostingDet>>> getUserPostingDet(@PathVariable String hrmsCd,
 			HttpServletRequest request) {
-		log.info("Fetching user posting details for HRMS: {}", hrmsCd);
+		log.info("Enter into getUserPostingDet() method for HRMS: {}", hrmsCd);
 		return buildListResponse(assignService.fetchUserPostingDet(hrmsCd), "Posting details fetched successfully",
 				"No posting details found", request);
-	}
-
-	// ===========================
+	}	
 	// = Role Details ============
-	// ===========================
-
 	@GetMapping("/roles")
 	public ResponseEntity<ApiResponse<List<RoleDet>>> getAllRoles(HttpServletRequest request) {
-		log.info("Fetching all roles");
+		log.info("Enter into getAllRoles() method Fetching all roles");
 		return buildListResponse(commonService.fetchAllRoles(), "Roles fetched successfully", "No roles found",
 				request);
-	}
-
-	// ===========================
-	// = User Details ============
-	// ===========================
-
-	@GetMapping("/user-details")
-	public ResponseEntity<ApiResponse<List<UserDet>>> getUserDet(@AuthenticationPrincipal Jwt jwt,
-			HttpServletRequest request) {
-		String requester = jwt.getSubject();
-		log.info("Fetching all user details for requester: {}", requester);
-		return buildListResponse(commonService.fetchAllUserDetails(), "User details fetched successfully",
-				"No user details found", request);
-	}
-
-	@GetMapping("/user-details/{hrmsCd}")
-	public ResponseEntity<ApiResponse<UserDet>> getUserDetails(@PathVariable String hrmsCd,
-			@AuthenticationPrincipal Jwt jwt) {
-		log.info("Fetching user details for HRMS: {}", hrmsCd);
-		UserDet user = commonService.getProfileDetails(hrmsCd);
-		user.setRole(extractRoles(jwt).stream().map(String::toLowerCase).collect(Collectors.toList()));
-		return ResponseEntity.ok(ApiResponse.success("User details fetched successfully", user));
-	}
-
-	// ===========================
-	// = Assignment Handling =====
-	// ===========================
+	}	
+	// = Assignment Handling =====	
 
 	@GetMapping("/assigned")
 	public ResponseEntity<ApiResponse<List<UserAssignDet>>> getAssignUsers(@AuthenticationPrincipal Jwt jwt,
@@ -203,27 +181,7 @@ public class UserController {
 				.path(request.getRequestURI()).build());
 	}
 	
-	@PostMapping("/add-module")
-	public ResponseEntity<ApiResponse<String>> add_module(@Valid @RequestBody AddModuleRequest req,
-			@AuthenticationPrincipal Jwt jwt, HttpServletRequest request) {
-		log.info("Received assignment request: {} by user {}", req, jwt.getSubject());
-		try {
-			assignService.addModule(req);
-			return buildSuccessResponse("Project Add Successfully", jwt.getSubject(), request);
-		} catch (ServiceException se) {
-			log.error("Service error during add Module {}: {}",  se.getMessage(), se);
-			throw se;
-			
-		} catch (Exception ex) {
-			log.error("Unexpected error during addmodule {}: {}",  ex.getMessage(), ex);
-			throw new ServiceException("Unexpected error during add Module " , ex);
-			
-		}
-	}
-
-	// ===========================
 	// = Helper Methods ==========
-	// ===========================
 
 	private <T> ResponseEntity<ApiResponse<List<T>>> buildListResponse(List<T> list, String successMsg, String emptyMsg,
 			HttpServletRequest request) {

@@ -71,7 +71,8 @@ public class SecurityConfig {
 
 				// Authorization rules
 				.authorizeHttpRequests(auth -> 
-				auth.requestMatchers("/public/**", "/actuator/**","/auth/**","/uploads/**").permitAll()
+				auth.requestMatchers("/public/**", "/actuator/**",
+						"/dashboard/signup/**").permitAll()
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll().anyRequest().authenticated())
 
 				// JWT-based OAuth2 resource server

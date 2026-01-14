@@ -26,8 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 public class CommonServiceImpl implements CommonService {
 
     private final CommonRepository commonRepository;
-
-    // cache master data 
+   
     @Override
 //    @Cacheable(value = "projects", key = "#authUserDet.hrmsCd", unless = "#result == null || #result.isEmpty()")
     public List<ProjectDet> fetchAllProjects(AuthUserDetails authUserDet) {

@@ -21,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
  * Controller for handling user signup and related metadata endpoints.
  */
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/dashboard")
 @Slf4j
 @RequiredArgsConstructor
 @CrossOrigin(origins = "https://10.153.43.8:8084")
@@ -86,7 +86,7 @@ public class SignupController {
 	/**
 	 * Fetches all designations from the system.
 	 */
-	@GetMapping("/designation_details")
+	@GetMapping("/signup/designation_details")
 	public ResponseEntity<ApiResponse<List<DesignDet>>> getAllDesignations(HttpServletRequest request) {
 		log.info("Fetching all designation details...");
 
